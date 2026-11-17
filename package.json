@@ -1,0 +1,10 @@
+{
+  "name": "dopagaki-study",
+  "version": "0.1.0",
+  "private": true,
+  "description": "DOPA LAB — 検査値アーケード",
+  "scripts": {
+    "test": "node --test tests/*.test.cjs",
+    "start": "node tools/serve.cjs"
+  }
+}
