@@ -3,6 +3,13 @@
   const fmt = n => Number(n).toLocaleString('en-US', {maximumFractionDigits:2});
   const range = d => d.lo === null ? `${fmt(d.hi)}以下` : d.hi === null ? `${fmt(d.lo)}以上` : `${fmt(d.lo)}〜${fmt(d.hi)}`;
   const classify = (d,v) => d.lo !== null && v < d.lo ? 'low' : d.hi !== null && v > d.hi ? 'high' : 'normal';
+  // Teaching weights, not estimates of disease prevalence. Both directions remain possible.
+  const directionWeights={ast:[1,9],alt:[1,9],tb:[1,9],'esr-m':[1,5],'esr-f':[1,5],'cr-m':[1,5],'cr-f':[1,5],alb:[5,1]};
+  function chooseDirection(d,options,rng=Math.random){
+    const [low,high]=directionWeights[d.id]??[1,1],weights={normal:(low+high)/2,low,high};
+    let x=rng()*options.reduce((sum,k)=>sum+weights[k],0);
+    for(const k of options){x-=weights[k];if(x<0)return k;}return options.at(-1);
+  }
   function abnormalLimits(d) {
     const step=10**-d.precision;
     // User-selected hypothetical model: bounds = mean ± 2 SD;
@@ -16,7 +23,7 @@
     const step = 10 ** -d.precision;
     const limits=abnormalLimits(d);
     const options = ['normal', ...(limits.low!==null&&limits.low>=step?['low']:[]), ...(limits.high!==null?['high']:[])];
-    const kind = options.includes(forced) ? forced : options[Math.floor(rng()*options.length)];
+    const kind = options.includes(forced)?forced:chooseDirection(d,forced==='abnormal'?options.filter(k=>k!=='normal'):options,rng);
     const span = Math.max(step, (d.hi ?? d.lo*1.6) - (d.lo ?? 0));
     const delta = Math.max(0,round(span*rng()*.3,d.precision));
     let value;
@@ -62,7 +69,7 @@
       }
     } else {
       state.wrong++; state.combo=0; state.gauge=Math.max(0,state.gauge-15);
-      if(state.cpu) state.score=Math.max(0,state.score-150); else state.penalty+=2000;
+      if(state.cpu){if(state.rule!=='race')state.score=Math.max(0,state.score-150);}else state.penalty+=2000;
     }
   }
   function cpuProfile(rating,mode) {
@@ -77,7 +84,7 @@
     for(const entries of boards.values())entries.sort((a,b)=>b.score-a.score).slice(0,10).forEach(r=>keep.add(r));
     return [...keep].sort((a,b)=>b.at-a.at);
   }
-  const api={fmt,range,classify,abnormalLimits,question,choose,numberLine,multiplier,award,cpuProfile,fresh,retainRecords};
+  const api={fmt,range,classify,abnormalLimits,question,choose,chooseDirection,directionWeights,numberLine,multiplier,award,cpuProfile,fresh,retainRecords};
   root.GameCore=api;
   if(typeof module!=='undefined') module.exports=api;
 })(globalThis);
