@@ -14,15 +14,44 @@ test('inclusive limits, one-sided limits and decimal precision',()=>{
   assert.equal(C.classify(D.find(d=>d.id==='db'),0),'normal');
   assert.equal(C.classify(D.find(d=>d.id==='hdl'),100),'normal');
 });
-test('generated values never contradict answers or cross physical zero',()=>{
+test('generated values are positive and abnormalities stay beyond the 1% tails',()=>{
   let seed=17;const random=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};
   for(const d of D)for(let stage=0;stage<4;stage++)for(let i=0;i<500;i++){
     const q=C.question(d,stage,undefined,random);
-    assert.ok(q.value>=0,d.id);assert.equal(C.classify(d,q.value),q.answer,d.id);
+    assert.ok(q.value>0,d.id);assert.equal(C.classify(d,q.value),q.answer,d.id);
     assert.equal(Number(q.value.toFixed(d.precision)),q.value);
     if(d.lo===null||d.lo===0)assert.notEqual(q.answer,'low');
     if(d.hi===null)assert.notEqual(q.answer,'high');
+    if(d.lo!==null&&d.hi!==null){
+      const mean=(d.lo+d.hi)/2,sigma=(d.hi-d.lo)/4;
+      if(q.answer==='low')assert.ok(q.value<mean-2.326347874*sigma,d.id+' lower 1%');
+      if(q.answer==='high')assert.ok(q.value>mean+2.326347874*sigma,d.id+' upper 1%');
+    }
   }
+});
+test('wrong choices are disabled, stay on the same question, and do not score twice',()=>{
+  const q={answer:'low',rejected:[]};
+  assert.equal(C.choose(q,'high'),'wrong');assert.deepEqual(q.rejected,['high']);assert.equal(q.revealed,true);assert.equal(q.solved,undefined);
+  assert.equal(C.choose(q,'high'),'ignored');assert.equal(C.choose(q,'normal'),'wrong');assert.deepEqual(q.rejected,['high','normal']);
+  assert.equal(C.choose(q,'low'),'correct');assert.equal(q.solved,true);assert.equal(C.choose(q,'low'),'ignored');
+});
+test('number line includes both limits and the value, with open single-sided intervals',()=>{
+  for(const d of D)for(const kind of ['normal','low','high']){
+    const q=C.question(d,0,kind),g=C.numberLine(d,q.value);
+    assert.ok(g.lo>=16&&g.hi<=304&&g.lo<g.hi,d.id);
+    assert.ok(g.value>=16&&g.value<=304,d.id);
+    if(q.answer==='low')assert.ok(g.value<g.lo,d.id);
+    if(q.answer==='high')assert.ok(g.value>g.hi,d.id);
+    if(q.answer==='normal')assert.ok(g.value>=g.lo&&g.value<=g.hi,d.id);
+    assert.equal(g.openLeft,d.lo===null);assert.equal(g.openRight,d.hi===null);
+  }
+});
+test('rounding at extreme random samples cannot create zero or borderline abnormalities',()=>{
+  for(const d of D)for(const r of [0,.000001,.999999])for(const kind of ['normal','low','high']){
+    const q=C.question(d,3,kind,()=>r),limits=C.abnormalLimits(d);
+    assert.ok(q.value>0,d.id);if(q.answer==='low')assert.ok(q.value<=limits.low);if(q.answer==='high')assert.ok(q.value>=limits.high);
+  }
+  const k=C.abnormalLimits(D.find(d=>d.id==='k'));assert.equal(k.low,3.4);assert.equal(k.high,5.2);
 });
 test('forced hunt abnormalities are actually abnormal, including HDL',()=>{
   for(const d of D){assert.notEqual(C.question(d,0,d.hi===null?'low':'high').answer,'normal');assert.equal(C.question(d,3,'normal').answer,'normal');}
