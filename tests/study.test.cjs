@@ -6,7 +6,13 @@ test('all bounds get four unique sorted, spaced choices including the exact answ
   for(const d of D)for(const side of ['lo','hi'])if(d[side]!==null)for(let i=0;i<100;i++){
     const a=S.choices(d,side,rng);assert.equal(a.length,4);assert.equal(new Set(a).size,4,d.id);
     assert.ok(a.includes(d[side]),d.id);assert.ok(a.every(v=>v>=0&&!Object.is(v,-0)));assert.deepEqual(a,[...a].sort((x,y)=>x-y));
-    assert.ok(a[1]-a[0]>=10**-d.precision-1e-8);
+    assert.ok(a[1]-a[0]>=.01-1e-8);
+  }
+});
+test('the eight paired choices read in ascending order down the left then the right column',()=>{
+  for(const d of D.filter(d=>d.lo!==null&&d.hi!==null))for(let i=0;i<100;i++){
+    const q=S.newInput(d,false,1,rng),all=[...q.options.lo,...q.options.hi];
+    assert.equal(new Set(all).size,8,d.id);assert.deepEqual(all,[...all].sort((a,b)=>a-b),d.id);
   }
 });
 test('lower then upper: reject wrong buttons, award only a full answer; single-sided has no invented bound',()=>{

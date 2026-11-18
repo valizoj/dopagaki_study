@@ -18,13 +18,18 @@
     const raw=d.id==='ph'?.1:Math.max(step,span*.4,Math.abs(target)*.08)*(0.85+rng()*.5);
     const pow=10**Math.floor(Math.log10(raw)),mantissa=raw/pow;
     const nice=(mantissa<1.5?1:mantissa<3.5?2:mantissa<7.5?5:10)*pow;
-    const gap=Math.max(step,round(nice,d.precision));
-    const slots=Math.min(3,Math.floor((target+1e-9)/gap));
-    const indexes=Array.from({length:slots+1},(_,i)=>i);
+    let gap=Math.max(step,round(nice,d.precision));
     const middle=d.lo!==null&&d.hi!==null?(d.lo+d.hi)/2:null;
-    const separated=middle===null?indexes:indexes.filter(i=>side==='lo'?target+(3-i)*gap<middle:target-i*gap>middle);
-    const allowed=separated.length?separated:indexes,correctIndex=allowed[Math.floor(rng()*allowed.length)];
-    return Array.from({length:4},(_,i)=>Math.max(0,round(target+(i-correctIndex)*gap,d.precision)));
+    let allowed=[];
+    for(let attempt=0;attempt<12;attempt++){
+      const slots=Math.min(3,Math.floor((target+1e-9)/gap));
+      const indexes=Array.from({length:slots+1},(_,i)=>i);
+      allowed=middle===null?indexes:indexes.filter(i=>side==='lo'?target+(3-i)*gap<middle:target-i*gap>middle);
+      if(allowed.length)break;
+      gap=Math.max(.01,round(gap/2,2));
+    }
+    const correctIndex=allowed[Math.floor(rng()*allowed.length)];
+    return Array.from({length:4},(_,i)=>Math.max(0,round(target+(i-correctIndex)*gap,2)));
   }
   function newInput(d,keypad,uid,rng=Math.random){
     const sides=['lo','hi'].filter(s=>d[s]!==null);
